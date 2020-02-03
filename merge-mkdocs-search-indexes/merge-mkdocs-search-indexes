@@ -13,8 +13,10 @@
 # direct subdirectories of the site root. To add more books it should be
 # sufficient to add their path names to the BOOKS list.
 
+import argparse
 import json
 import os
+import sys
 
 # Relative path to generated website, from this script
 SITE_ROOT = 'site'
@@ -130,7 +132,8 @@ class SubBook(AbstractBook):
     def _update_json(self, sub_books, main_book):
         """Extend index with indexes to the main book and the other subbooks."""
         docs = self.json()['docs']
-        docs.extend(main_book.json_from_sub())
+        if main_book:
+            docs.extend(main_book.json_from_sub())
         for b in sub_books:
             if not b == self:
                 docs.extend(b.json_from_sub())
@@ -138,16 +141,21 @@ class SubBook(AbstractBook):
 
 class Main(object):
     """A class instead of a main() function"""
-    def __init__(self, main_book):
+
+    def __init__(self):
         # We assume the script is called from within the repository
-        self._root = os.getcwd()
+        self.parse_args()
         self._main_book = None
         self._sub_books = []
-        self.init_books(main_book)
+        self.init_books(self.main_book_name())
         self.update_books()
 
     def init_books(self, main_book):
-        """Create the book objects, load indexes from disk."""
+        """
+        Create the book objects, load indexes from disk.
+        A main book is only created if it is given, otherwise
+        all book parts are siblings.
+        """
         root = self.root()
         items = os.listdir(root)
         for i in items:
@@ -163,22 +171,51 @@ class Main(object):
             else:
                 pass
 
+    def main_book_name(self):
+        """
+        Returns the name of the main book or '' if no main book is specified.
+        """
+        return self._args.main
+
+    def parse_args(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            '-m',
+            '--main',
+            default='',
+            help='Subdirectory considered to contain the main book'
+        )
+        parser.add_argument(
+            '-b', '--built',
+            choices=['yes'],
+            help='Specify to indicate that the subbooks have been built'
+        )
+        parser.add_argument(
+            '-r', '--root',
+            default=os.getcwd(),
+            help='Project root directory, defaults to current working directory'
+        )
+        self._args = args = parser.parse_args()
+        if not args.built:
+            sys.exit("""
+CONFIGURATION ERROR:
+
+This Script merges the search indexes of multiple MkDocs sites.
+Please add the "-b/--built yes" command line option to state that
+the bookparts have already been built by MkDocs.
+
+Aborting.
+            """)
+        self._root = args.root #or os.getcwd()
+
     def root(self):
         return self._root
 
     def update_books(self):
         """Update the JSON indexes for all books and save to disk."""
-        self._main_book.update_json(self._sub_books)
+        if self._main_book:
+            self._main_book.update_json(self._sub_books)
         for b in self._sub_books:
             b.update_json(self._sub_books, self._main_book)
 
-
-def warn():
-    print("Script to merge the search indexes of the MkDocs subbooks")
-    print()
-    print('NOTE:')
-    print('This script should only be called *after* all book parts')
-    print('have been created. Otherwise file access errors may occur.')
-
-warn()
-Main(MAIN_BOOK)
+Main()
