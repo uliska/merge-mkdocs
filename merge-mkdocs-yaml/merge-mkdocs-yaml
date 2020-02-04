@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+
+# Merge several MkDocs "books" to one multi-book site.
+
+import argparse
+import os
+import sys
+import oyaml
+
+def missing_file(book):
+    sys.exit("""
+CONFIGURATION ERROR:
+
+Missing conf file in book {}
+
+Aborting.
+    """.format(book))
+
+def read_yaml(file):
+    if not os.path.exists(file):
+        return {}
+    with open(file, 'r') as f:
+        return oyaml.load(f.read(), Loader=oyaml.BaseLoader)
+
+
+class AbstractBook(object):
+
+    def __init__(self, project, entry):
+
+        self._project = project
+        self._name = entry['name']
+        self._title = entry['title']
+        self._root = root = os.path.join(project.root(), self._name)
+        self._target_file = os.path.join(root, 'mkdocs.yml')
+        config_dir = os.path.join(root, '_merge-mkdocs-config')
+        config_file = os.path.join(config_dir, 'book-config.yml')
+        nav_file = os.path.join(config_dir, 'navigation.yml')
+        if not (
+            os.path.exists(root)
+            and os.path.exists(config_file)
+            and os.path.exists(nav_file)
+        ):
+            # TODO: Make this better by using defaults
+            missing_file(self._name)
+        self._config = read_yaml(config_file)
+        self._common = ''
+        with open(nav_file, 'r') as f:
+            self._nav = f.read().split('\n')
+
+    def config(self):
+        return self._config
+
+    def name(self):
+        return self._name
+
+    def nav(self):
+        return self._nav
+
+    def project(self):
+        return self._project
+
+    def root(self):
+        return self._root
+
+    def set_common(self, content):
+        self._common = content
+
+    def set_nav(self, content):
+        self._nav = '\n'.join(content)
+
+    def set_target(self, content):
+        self._target = content
+
+    def target_file(self):
+        return self._target_file
+
+    def title(self):
+        return self._title
+
+    def update_paths(self):
+        self._common = self._common.replace(
+            '<<<src_dir>>>', self.name()).replace(
+                '<<<site_path>>>', self.site_path())
+
+    def write_yaml(self):
+        with open(self.target_file(), 'w') as f:
+            f.write(self._common + self.nav())
+
+class MainBook(AbstractBook):
+
+    def site_path(self):
+        return ''
+
+
+class SubBook(AbstractBook):
+
+    def site_path(self):
+        return '/{}'.format(self.name())
+
+
+class Project(object):
+
+    def __init__(self, cl_args):
+        self._root = cl_args.root
+        self._books = []
+        self._main_book = None
+        self._config = self.read_config()
+        template_dir = os.path.join(self._root, '_merge-mkdocs-config')
+        self._template_file = template_file = os.path.join(
+            template_dir, 'template.yml'
+        )
+        self._defaults_file = defaults_file = os.path.join(
+            template_dir, 'defaults.yml'
+        )
+        self._outline_file = outline_file = os.path.join(
+            template_dir, 'outline.yml'
+        )
+        if not (
+            os.path.exists(template_file)
+            and os.path.exists(defaults_file)
+            and os.path.exists(outline_file)
+        ):
+            raise Exception("Project, Defaults, or Books file missing")
+
+        with open(template_file, 'r') as f:
+            self._template = f.read()
+        self._defaults = read_yaml(defaults_file)
+        self._outline = read_yaml(outline_file)
+
+    def book_nav(self, target):
+        return [
+            '  - "{}":'.format(target.title()),
+            '    - Home: "../{}/index.html"'.format(target.name())
+        ]
+
+    def books(self):
+        return self._books
+
+    def config(self, key):
+        return self._config[key]
+
+    def home_nav(self):
+        main = self.main_book()
+        result = []
+        if self._main_book:
+            result.append('  - "{}":'.format(main.title()))
+            result.append('    - Home: ../index.html'.format(main.name()))
+        return result
+
+    def load_books(self):
+        main = self._outline.get('main', None)
+        if main:
+            main_book = MainBook(self, main)
+            self._books.append(main_book)
+            self._main_book = main_book.name()
+        for name, title in self._outline['books'].items():
+            self._books.append(SubBook(self, {
+                'name': name,
+                'title': title
+            }))
+
+    def main_book(self):
+        if self._main_book:
+            return self.books()[0]
+
+    def process_books(self):
+        for book in self.books():
+            self.process_template(book)
+            book.update_paths()
+            self.update_nav(book)
+            book.write_yaml()
+
+    def process_template(self, book):
+        config = book.config()
+        result = self._template
+        for item in self._defaults:
+            result = result.replace(
+                '<<<{}>>>'.format(item),
+                config.get(item, None) or self._defaults[item]
+            )
+        book.set_common(result)
+
+    def read_config(self):
+        config_file = os.path.join(
+            self.root(),
+            '_merge_mkdocs-config',
+            'config.yml'
+        )
+        config = read_yaml(config_file)
+        result = {}
+        result['link_to_siblings'] = config.get(
+            'link_to_siblings',
+            False
+        )
+        return result
+
+    def root(self):
+        return self._root
+
+    def update_nav(self, book):
+        result = ['nav:']
+        if isinstance(book, SubBook):
+            result.extend(self.home_nav())
+        if self.config('link_to_siblings'):
+            for b in self.books():
+                if b != self.main_book():
+                    result.extend(self.book_nav(b))
+                if b == book:
+                    result.pop()
+                    for line in book.nav():
+                        result.append('    {}'.format(line))#
+        else:
+            for line in book.nav():
+                result.append('  {}'.format(line))
+        book.set_nav(result)
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-r', '--root',
+        default=os.getcwd(),
+        help='Project root directory, defaults to current working directory'
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    common = Project(args)
+    common.load_books()
+    common.process_books()
+
+
+if __name__ == '__main__':
+    main()
