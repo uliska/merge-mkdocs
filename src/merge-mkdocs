@@ -7,6 +7,9 @@ import os
 import sys
 import oyaml
 
+from subprocess import Popen
+
+
 # TODO: This has to be cleaner, both in implementation and in use.
 def missing_file(book):
     sys.exit("""
@@ -57,6 +60,19 @@ class AbstractBook(object):
         with open(nav_file, 'r') as f:
             self._nav = f.read().split('\n')
 
+    def build(self):
+        """Call MkDocs to build the book."""
+        print("Building partial book", self.name())
+        print()
+        p = Popen(['mkdocs', 'build'], cwd=self.root())
+        p.wait()
+        output, errors = p.communicate()
+        print(output)
+        if errors:
+            raise Exception(errors)
+        print("\n=======\n")
+
+
     def config(self):
         return self._config
 
@@ -104,11 +120,6 @@ class AbstractBook(object):
             path = self.site_path()
         )
         self.set_common(result)
-
-    # def update_paths(self):
-    #     self._common = self._common.replace(
-    #         '<<<src_dir>>>', self.name()).replace(
-    #             '<<<site_path>>>', self.site_path())
 
     def write_yaml(self):
         with open(self.target_file(), 'w') as f:
@@ -181,6 +192,11 @@ class Project(object):
         """
         return self._books
 
+    def build_site(self):
+        """Build the site, first the main, then all other books."""
+        for book in self.books():
+            book.build()
+
     def config(self, key=None):
         """
         Returns a given configuration value,
@@ -229,7 +245,12 @@ class Project(object):
         if self._main_book:
             return self.books()[0]
 
-    def process_books(self):
+    def merge_indexes(self):
+        """Merge search indexes after building the partial sites."""
+        # TODO: Migrate from separate script
+        pass
+
+    def merge_sources(self):
         """Iterate over and process all books."""
         for book in self.books():
             # fill in values for template fields
@@ -253,11 +274,43 @@ class Project(object):
             'link_to_siblings',
             False
         )
+        result['upload_script'] = config.get(
+            'upload_script',
+            'upload'
+        )
         result['site_root'] = config.get('site_root', 'site')
         return result
 
     def root(self):
         return self._root
+
+    def run_recipe(self, recipe):
+        """Run a given recipe, i.e. set of steps."""
+        recipes = {
+            'merge-sources': [
+                'merge_sources'
+            ],
+            'build': [
+                'merge_sources',
+                'build_site',
+                'merge_indexes'
+            ],
+            'merge-indexes': [
+                'merge_indexes'
+            ],
+            'upload': [
+                'upload'
+            ],
+            'all': [
+                'build_site',
+                'upload'
+            ]
+        }
+        self.load_books()
+        recipe = recipes[recipe]
+        for step in recipe:
+            func = getattr(self, step)
+            func()
 
     def site_root(self):
         """Returns the relative path to the generated site's root.
@@ -299,6 +352,26 @@ class Project(object):
                 result.append('  {}'.format(line))
         book.set_nav(result)
 
+    def upload(self):
+        """Upload the site using a user/project-provided script.
+        The script can be given as a configuration option, or
+        it defaults to 'upload'. It may be given as relative to
+        the project root or as an absolute path.
+        The script has to be executable, and it has to work without
+        user interaction.
+        """
+        print("Uploading site")
+        script = self.config('upload_script')
+        if not os.path.isabs(script):
+            script = os.path.join(self.root(), script)
+        p = Popen([script], shell=True)
+        p.wait()
+        output, errors = p.communicate()
+        print(output)
+        if errors:
+            raise Exception(errors)
+        print("\n=======\n")
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -318,9 +391,8 @@ def parse_args():
 
 def main():
     args = parse_args()
-    common = Project(args)
-    common.load_books()
-    common.process_books()
+    project = Project(args)
+    project.run_recipe(args.task)
 
 
 if __name__ == '__main__':
