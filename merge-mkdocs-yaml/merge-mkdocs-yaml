@@ -7,6 +7,7 @@ import os
 import sys
 import oyaml
 
+# TODO: This has to be cleaner, both in implementation and in use.
 def missing_file(book):
     sys.exit("""
 CONFIGURATION ERROR:
@@ -16,7 +17,12 @@ Missing conf file in book {}
 Aborting.
     """.format(book))
 
+
 def read_yaml(file):
+    """
+    Read a YAML file and return its configuration as an ordered dictionary.
+    If the file doesn't exist an empty dict is returned.
+    """
     if not os.path.exists(file):
         return {}
     with open(file, 'r') as f:
@@ -24,13 +30,16 @@ def read_yaml(file):
 
 
 class AbstractBook(object):
+    """Partial Book class.
+    MainBook and SubBook are very similar but have to be loaded explicitly.
+    """
 
     def __init__(self, project, entry):
 
         self._project = project
         self._name = entry['name']
         self._title = entry['title']
-        self._root = root = os.path.join(project.root(), self._name)
+        self._root = root = os.path.join(project.root(), 'books', self._name)
         self._target_file = os.path.join(root, 'mkdocs.yml')
         config_dir = os.path.join(root, '_merge-mkdocs-config')
         config_file = os.path.join(config_dir, 'book-config.yml')
@@ -43,6 +52,7 @@ class AbstractBook(object):
             # TODO: Make this better by using defaults
             missing_file(self._name)
         self._config = read_yaml(config_file)
+        self._config['src_dir'] = self._name
         self._common = ''
         with open(nav_file, 'r') as f:
             self._nav = f.read().split('\n')
@@ -77,10 +87,27 @@ class AbstractBook(object):
     def title(self):
         return self._title
 
-    def update_paths(self):
-        self._common = self._common.replace(
-            '<<<src_dir>>>', self.name()).replace(
-                '<<<site_path>>>', self.site_path())
+    def update_template(self):
+        """
+        Update the template with actual values.
+        """
+        result = self.project().template()
+        for item in self.project().defaults():
+            result = result.replace(
+                '<<<{}>>>'.format(item),
+                self.config().get(item, None) or self.project().defaults(item)
+            )
+        result = result.rstrip('\n') + '\n'
+        result = result + "site_dir: '../../{root}/{book}'\n\n".format(
+            root = self.project().config('site_root'),
+            book = self.name()
+        )
+        self.set_common(result)
+
+    # def update_paths(self):
+    #     self._common = self._common.replace(
+    #         '<<<src_dir>>>', self.name()).replace(
+    #             '<<<site_path>>>', self.site_path())
 
     def write_yaml(self):
         with open(self.target_file(), 'w') as f:
@@ -105,16 +132,25 @@ class Project(object):
         self._books = []
         self._main_book = None
         self._config = self.read_config()
-        template_dir = os.path.join(self._root, '_merge-mkdocs-config')
+        config_dir = os.path.join(self._root, '_merge-mkdocs-config')
         self._template_file = template_file = os.path.join(
-            template_dir, 'template.yml'
+            config_dir, 'template.yml'
         )
         self._defaults_file = defaults_file = os.path.join(
-            template_dir, 'defaults.yml'
+            config_dir, 'defaults.yml'
         )
         self._outline_file = outline_file = os.path.join(
-            template_dir, 'outline.yml'
+            config_dir, 'outline.yml'
         )
+        # TODO: Make better:
+        # - no template will result in near-empty template (only site_dir?)
+        # - defaults:
+        #   - if no template we don't need defaults
+        #   - check defaults against template fields.
+        #     Every template field needs a default
+        # - no outline:
+        #   - use books in alphabetical order, without main book
+        #     (should work?)
         if not (
             os.path.exists(template_file)
             and os.path.exists(defaults_file)
@@ -128,59 +164,83 @@ class Project(object):
         self._outline = read_yaml(outline_file)
 
     def book_nav(self, target):
+        """
+        Returns a string list with the navigation entry
+        pointing to the given non-home book.
+        """
         return [
             '  - "{}":'.format(target.title()),
             '    - Home: "../{}/index.html"'.format(target.name())
         ]
 
     def books(self):
+        """
+        Returns a list with all book objects.
+        If the project has a main book it will be the first element.
+        """
         return self._books
 
-    def config(self, key):
-        return self._config[key]
+    def config(self, key=None):
+        """
+        Returns a given configuration value,
+        or the whole config dictionary.
+        """
+        if key:
+            return self._config[key]
+        else:
+            return self._config
+
+    def defaults(self, key=None):
+        if key:
+            return self._defaults[key]
+        else:
+            return self._defaults
 
     def home_nav(self):
-        main = self.main_book()
+        """
+        Returns a navigation entry to the main book if one exists
+        in the project, otherwise an empty (string) list.
+        """
         result = []
+        main = self.main_book()
         if self._main_book:
             result.append('  - "{}":'.format(main.title()))
             result.append('    - Home: ../index.html'.format(main.name()))
         return result
 
     def load_books(self):
+        """Create the book objects."""
         main = self._outline.get('main', None)
         if main:
             main_book = MainBook(self, main)
             self._books.append(main_book)
             self._main_book = main_book.name()
         for name, title in self._outline['books'].items():
+            # The subbook entries are done different from the main book,
+            # so we have to explicitly create the dict here
             self._books.append(SubBook(self, {
                 'name': name,
                 'title': title
             }))
 
     def main_book(self):
+        """Return the MainBook object, or None."""
         if self._main_book:
             return self.books()[0]
 
     def process_books(self):
+        """Iterate over and process all books."""
         for book in self.books():
-            self.process_template(book)
-            book.update_paths()
+            # fill in values for template fields
+            book.update_template()
+            # Generate local navigation and
+            # add links to other book parts
             self.update_nav(book)
+            # write the book's mkdocs.yml file
             book.write_yaml()
 
-    def process_template(self, book):
-        config = book.config()
-        result = self._template
-        for item in self._defaults:
-            result = result.replace(
-                '<<<{}>>>'.format(item),
-                config.get(item, None) or self._defaults[item]
-            )
-        book.set_common(result)
-
     def read_config(self):
+        """Read the project's configuration file."""
         config_file = os.path.join(
             self.root(),
             '_merge_mkdocs-config',
@@ -192,27 +252,52 @@ class Project(object):
             'link_to_siblings',
             False
         )
+        result['site_root'] = config.get('site_root', 'site')
         return result
 
     def root(self):
         return self._root
 
+    def site_root(self):
+        """Returns the relative path to the generated site's root.
+        Defaults to 'site'.
+        """
+        return self.config('site_root')
+
+    def template(self):
+        return self._template
+
     def update_nav(self, book):
+        """Process a book's navigation structure.
+        Integrate the local navigation in the multi-book set-up.
+        """
         result = ['nav:']
+        # Subbooks get a main link to the main book
         if isinstance(book, SubBook):
             result.extend(self.home_nav())
+        # By default sibling books are *not* linked to
+        # because that is somewhat redundant.
+        # The default is having the whole navigation structure
+        # under control of the subbook and just add the link
+        # the the main book.
         if self.config('link_to_siblings'):
             for b in self.books():
                 if b != self.main_book():
+                    # exclude main book because we already have it
                     result.extend(self.book_nav(b))
                 if b == book:
+                    # the *current* book
+                    # - remove the "home" line
+                    # - and append the local navigation
                     result.pop()
                     for line in book.nav():
                         result.append('    {}'.format(line))#
         else:
+            # Simply add the local navigation.
             for line in book.nav():
                 result.append('  {}'.format(line))
         book.set_nav(result)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
