@@ -302,6 +302,12 @@ class Project(object):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        '--task',
+        default='build',
+        choices=['build', 'merge-sources', 'upload', 'merge-indexes', 'all'],
+        help='Task(s) to be performed'
+    )
+    parser.add_argument(
         '-r', '--root',
         default=os.getcwd(),
         help='Project root directory, defaults to current working directory'
