@@ -98,9 +98,10 @@ class AbstractBook(object):
                 self.config().get(item, None) or self.project().defaults(item)
             )
         result = result.rstrip('\n') + '\n'
-        result = result + "site_dir: '../../{root}/{book}'\n\n".format(
+
+        result = result + "site_dir: '../../{root}{path}'\n\n".format(
             root = self.project().config('site_root'),
-            book = self.name()
+            path = self.site_path()
         )
         self.set_common(result)
 
