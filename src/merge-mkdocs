@@ -1,260 +1,47 @@
 #!/usr/bin/env python3
 
-# Merge several MkDocs "books" to one multi-book site.
+# This file is part of the merge-mkdocs project,
+# https://github.com/uliska/merge-mkdocs
+# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/merge-mkdocs/
+#
+# Copyright (c) 2020 by Urs Liska
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 3
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# See http://www.gnu.org/licenses/ for more information.
+
+"""
+Merge several MkDocs "books" to one multi-book site.
+This is the script's entry file.
+"""
 
 import argparse
 import os
-import sys
 
-from subprocess import Popen
-
-from book import MainBook, SubBook
-from util import read_yaml, missing_file
-
-
-class Project(object):
-
-    def __init__(self, cl_args):
-        self._root = cl_args.root
-        self._books = []
-        self._main_book = None
-        self._config = self.read_config()
-        config_dir = os.path.join(self._root, '_merge-mkdocs-config')
-        self._template_file = template_file = os.path.join(
-            config_dir, 'template.yml'
-        )
-        self._defaults_file = defaults_file = os.path.join(
-            config_dir, 'defaults.yml'
-        )
-        self._outline_file = outline_file = os.path.join(
-            config_dir, 'outline.yml'
-        )
-        # TODO: Make better:
-        # - no template will result in near-empty template (only site_dir?)
-        # - defaults:
-        #   - if no template we don't need defaults
-        #   - check defaults against template fields.
-        #     Every template field needs a default
-        # - no outline:
-        #   - use books in alphabetical order, without main book
-        #     (should work?)
-        if not (
-            os.path.exists(template_file)
-            and os.path.exists(defaults_file)
-            and os.path.exists(outline_file)
-        ):
-            raise Exception("Project, Defaults, or Books file missing")
-
-        with open(template_file, 'r') as f:
-            self._template = f.read()
-        self._defaults = read_yaml(defaults_file)
-        self._outline = read_yaml(outline_file)
-
-    def book_nav(self, target):
-        """
-        Returns a string list with the navigation entry
-        pointing to the given non-home book.
-        """
-        return [
-            '  - "{}":'.format(target.title()),
-            '    - Home: "../{}/index.html"'.format(target.name())
-        ]
-
-    def books(self):
-        """
-        Returns a list with all book objects.
-        If the project has a main book it will be the first element.
-        """
-        return self._books
-
-    def build_site(self):
-        """Build the site, first the main, then all other books."""
-        for book in self.books():
-            book.build()
-
-    def config(self, key=None):
-        """
-        Returns a given configuration value,
-        or the whole config dictionary.
-        """
-        if key:
-            return self._config[key]
-        else:
-            return self._config
-
-    def defaults(self, key=None):
-        if key:
-            return self._defaults[key]
-        else:
-            return self._defaults
-
-    def home_nav(self):
-        """
-        Returns a navigation entry to the main book if one exists
-        in the project, otherwise an empty (string) list.
-        """
-        result = []
-        main = self.main_book()
-        if self._main_book:
-            result.append('  - "{}":'.format(main.title()))
-            result.append('    - Home: ../index.html'.format(main.name()))
-        return result
-
-    def load_books(self):
-        """Create the book objects."""
-        main = self._outline.get('main', None)
-        if main:
-            main_book = MainBook(self, main)
-            self._books.append(main_book)
-            self._main_book = main_book.name()
-        for name, title in self._outline['books'].items():
-            # The subbook entries are done different from the main book,
-            # so we have to explicitly create the dict here
-            self._books.append(SubBook(self, {
-                'name': name,
-                'title': title
-            }))
-
-    def main_book(self):
-        """Return the MainBook object, or None."""
-        if self._main_book:
-            return self.books()[0]
-
-    def merge_indexes(self):
-        """Merge search indexes after building the partial sites."""
-        # TODO: Migrate from separate script
-        pass
-
-    def merge_sources(self):
-        """Iterate over and process all books."""
-        for book in self.books():
-            # fill in values for template fields
-            book.update_template()
-            # Generate local navigation and
-            # add links to other book parts
-            self.update_nav(book)
-            # write the book's mkdocs.yml file
-            book.write_yaml()
-
-    def read_config(self):
-        """Read the project's configuration file."""
-        config_file = os.path.join(
-            self.root(),
-            '_merge_mkdocs-config',
-            'config.yml'
-        )
-        config = read_yaml(config_file)
-        result = {}
-        result['link_to_siblings'] = config.get(
-            'link_to_siblings',
-            False
-        )
-        result['upload_script'] = config.get(
-            'upload_script',
-            'upload'
-        )
-        result['site_root'] = config.get('site_root', 'site')
-        return result
-
-    def root(self):
-        return self._root
-
-    def run_recipe(self, recipe):
-        """Run a given recipe, i.e. set of steps."""
-        recipes = {
-            'merge-sources': [
-                'merge_sources'
-            ],
-            'build': [
-                'merge_sources',
-                'build_site',
-                'merge_indexes'
-            ],
-            'merge-indexes': [
-                'merge_indexes'
-            ],
-            'upload': [
-                'upload'
-            ],
-            'all': [
-                'build_site',
-                'upload'
-            ]
-        }
-        self.load_books()
-        recipe = recipes[recipe]
-        for step in recipe:
-            func = getattr(self, step)
-            func()
-
-    def site_root(self):
-        """Returns the relative path to the generated site's root.
-        Defaults to 'site'.
-        """
-        return self.config('site_root')
-
-    def template(self):
-        return self._template
-
-    def update_nav(self, book):
-        """Process a book's navigation structure.
-        Integrate the local navigation in the multi-book set-up.
-        """
-        result = ['nav:']
-        # Subbooks get a main link to the main book
-        if isinstance(book, SubBook):
-            result.extend(self.home_nav())
-        # By default sibling books are *not* linked to
-        # because that is somewhat redundant.
-        # The default is having the whole navigation structure
-        # under control of the subbook and just add the link
-        # the the main book.
-        if self.config('link_to_siblings'):
-            for b in self.books():
-                if b != self.main_book():
-                    # exclude main book because we already have it
-                    result.extend(self.book_nav(b))
-                if b == book:
-                    # the *current* book
-                    # - remove the "home" line
-                    # - and append the local navigation
-                    result.pop()
-                    for line in book.nav():
-                        result.append('    {}'.format(line))#
-        else:
-            # Simply add the local navigation.
-            for line in book.nav():
-                result.append('  {}'.format(line))
-        book.set_nav(result)
-
-    def upload(self):
-        """Upload the site using a user/project-provided script.
-        The script can be given as a configuration option, or
-        it defaults to 'upload'. It may be given as relative to
-        the project root or as an absolute path.
-        The script has to be executable, and it has to work without
-        user interaction.
-        """
-        print("Uploading site")
-        script = self.config('upload_script')
-        if not os.path.isabs(script):
-            script = os.path.join(self.root(), script)
-        p = Popen([script], shell=True)
-        p.wait()
-        output, errors = p.communicate()
-        print(output)
-        if errors:
-            raise Exception(errors)
-        print("\n=======\n")
+from project import Project
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    # Recipe controlling what the script actually does.
+    # - command line argument takes precedence
+    # - default recipe is 'build'
+    # - project specific default can be given in the config
     parser.add_argument(
-        '--task',
-        default='build',
-        choices=['build', 'merge-sources', 'upload', 'merge-indexes', 'all'],
-        help='Task(s) to be performed'
+        '--recipe',
+        choices=['build', 'merge-sources', 'deploy', 'merge-indexes', 'all'],
+        help='Task (sequence) to be performed. Defaults to "build"'
     )
     parser.add_argument(
         '-r', '--root',
@@ -266,8 +53,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    project = Project(args)
-    project.run_recipe(args.task)
+    Project(args).exec_recipe()
 
 
 if __name__ == '__main__':
