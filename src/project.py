@@ -47,10 +47,12 @@ class Project(object):
     """A merge-mkdocs project, represents a directory structure.
     """
 
-    def __init__(self, cl_args):
+    def __init__(self, cl_args, program_defaults_dir):
 
         # Project root directory, defaulting to current working directory
         self._root = cl_args.root
+        # Directory with the program defaults
+        self._program_defaults_dir = program_defaults_dir
         # List of books. If present, the main book is the first in this list.
         self._books = []
         self._has_main_book = False
@@ -224,27 +226,18 @@ class Project(object):
         return self._outline_file
 
     def read_config(self):
-        """Read the project's configuration file.
-        Provides default values if not provided by project configuration.
         """
-        defaults = {
-            'link_to_siblings': False,
-            'siblings_position': 'end',
-            'siblings_link_title': 'Sibling Books',
-            'deploy_script': 'deploy',
-            'site_root': 'site',
-            'default_recipe': 'build'
-        }
-        config = read_yaml(self.config_file())
-        config_file = os.path.join(
-            self.root(),
-            '_merge_mkdocs-config',
+        Read the project's configuration file,
+        overriding program defaults with any given value.
+        """
+        result = read_yaml(os.path.join(
+            self._program_defaults_dir,
             'config.yml'
-        )
+        ))
+        config = read_yaml(self.config_file())
 
-        result = {}
-        for key in defaults:
-            result[key] = config.get(key, defaults[key])
+        for key, value in config.items():
+            result[key] = value
 
         return result
 

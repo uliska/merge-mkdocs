@@ -1,0 +1,28 @@
+# merge-mkdocs configuration variables' default values.
+# These can be overridden in a project's
+# _merge-mkdocs-config/config.yml file
+
+# Add navigation links to other books in a project
+# (if the 'tabs' feature of the Material theme is used
+# these are added to each secondary level navigation.)
+link_to_siblings: false
+
+# Position of the sibling links [start|end]
+siblings_position: 'end'
+
+# Title of the group containing the sibling links
+siblings_link_title: 'Sibling Books'
+
+# Path to the generated project site.
+# If this is a relative path it is considered
+# relative to the project's root directory.
+site_root: 'site'
+
+# Name of a script to be used after building a project
+# (must be executable and work without arguments,
+# however, command line interaction (e.g. passwords) is possible.)
+deploy_script: 'deploy'
+
+# When no recipe is chosen through the command line option
+# the default is the full build sequence.
+default_recipe: 'build'

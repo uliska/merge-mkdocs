@@ -52,8 +52,14 @@ def parse_args():
 
 
 def main():
+    config_dir = os.path.join(
+        os.path.dirname(
+            os.path.realpath(__file__)
+        ),
+        'defaults'
+    )
     args = parse_args()
-    Project(args).exec_recipe()
+    Project(args, config_dir).exec_recipe()
 
 
 if __name__ == '__main__':
