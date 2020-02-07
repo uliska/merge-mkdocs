@@ -26,6 +26,7 @@ Representation of a merge-mkdocs project
 """
 
 import os
+import oyaml
 import sys
 
 from subprocess import Popen
@@ -85,15 +86,39 @@ class Project(object):
         # Decide which recipe is going to be executed
         self._recipe = cl_args.recipe or self.config('default_recipe')
 
-    def book_nav(self, target):
+    def book_nav(self, source, target):
         """
         Returns a string list with the navigation entry
         pointing to the given non-home book.
         """
-        return [
-            '  - "{}":'.format(target.title()),
-            '    - Home: "../{}/index.html"'.format(target.name())
-        ]
+        from_segment = '' if source.is_main_book() else '../'
+        to_segment = target.site_segment()
+        separator = '' if target.is_main_book() else '/'
+        link = '{fr}{to}{sep}index.html'.format(
+            fr=from_segment,
+            to=to_segment,
+            sep=separator
+        )
+
+        title = (
+            '[{}]'.format(target.title())
+            if source == target
+            else target.title()
+        )
+
+    # TODO: Clarify how to handle sibling navigation in tabs
+    # https://github.com/uliska/merge-mkdocs/issues/8
+        return {
+            title: link
+        }
+        # if source.use_tabs():
+        #     return {
+        #         target.title(): { 'Invisible': link }
+        #     }
+        # else:
+        #     return {
+        #         target.title(): link
+        #     }
 
     def books(self):
         """
@@ -147,17 +172,26 @@ class Project(object):
         for step in recipe:
             getattr(self, step)()
 
-    def home_nav(self):
+    def home_nav(self, from_book):
         """
         Returns a navigation entry to the main book if one exists
-        in the project, otherwise an empty (string) list.
+        in the project, otherwise None.
+        If the book from which this link is created uses the 'tabs'
+        feature of the Material theme then a subentry is necessary,
+        otherwise a direct link is created.
         """
-        result = []
         main = self.main_book()
         if main:
-            result.append('  - "{}":'.format(main.title()))
-            result.append('    - Home: ../index.html'.format(main.name()))
-        return result
+            if from_book.use_tabs():
+                return {
+                    main.title(): { 'Invisible': '../index.html'}
+                }
+            else:
+                return {
+                    main.title(): '../index.html'
+                }
+        else:
+            return None
 
     def load_books(self):
         """Create the book objects."""
@@ -195,6 +229,8 @@ class Project(object):
         """
         defaults = {
             'link_to_siblings': False,
+            'siblings_position': 'end',
+            'siblings_link_title': 'Sibling Books',
             'deploy_script': 'deploy',
             'site_root': 'site',
             'default_recipe': 'build'
@@ -322,32 +358,48 @@ class Project(object):
     def update_nav(self, book):
         """Process a book's navigation structure.
         Integrate the local navigation in the multi-book set-up.
+        NOTE: This modifies the book.nav()['nav'] list in place.
         """
     # TODO: Enhance
     # (https://github.com/uliska/merge-mkdocs/issues/1)
-        result = ['nav:']
-        # Subbooks get a main link to the main book
-        if not book.is_main_book():
-            result.extend(self.home_nav())
+        nav = book.nav()['nav']
+
+        link_to_siblings = self.config('link_to_siblings')
+
         # By default sibling books are *not* linked to
         # because that is somewhat redundant.
         # The default is having the whole navigation structure
         # under control of the subbook and just add the link
         # the the main book.
         if self.config('link_to_siblings'):
-            for b in self.books():
-                if b != self.main_book():
-                    # exclude main book because we already have it
-                    result.extend(self.book_nav(b))
-                if b == book:
-                    # the *current* book
-                    # - remove the "home" line
-                    # - and append the local navigation
-                    result.pop()
-                    for line in book.nav():
-                        result.append('    {}'.format(line))#
-        else:
-            # Simply add the local navigation.
-            for line in book.nav():
-                result.append('  {}'.format(line))
-        book.set_nav(result)
+            siblings_position = self.config('siblings_position')
+
+            sibling_nav = {
+                self.config('siblings_link_title'): [
+                    self.book_nav(book, b)
+                    for b in self.books()
+                    #if b != book
+                ]
+            }
+
+            def insert_siblings(nav_branch):
+                if siblings_position == 'start':
+                    nav_branch.insert(0, sibling_nav)
+                else:
+                    nav_branch.append(sibling_nav)
+
+            if not book.use_tabs():
+                insert_siblings(nav)
+            else:
+                for i, tl_entry in enumerate(nav):
+                    for name, entry in tl_entry.items():
+                        if type(entry) != list:
+                            entry = [{ name: entry }]
+                            nav[i] = { name: entry }
+                        insert_siblings(entry)
+        # Subbooks get a link to the main book at the top if ...
+        elif (
+            self.main_book()            # ... there *is* a main book
+            and not book.is_main_book() # but it's not the current book
+        ):
+            nav.insert(0, self.home_nav(book))

@@ -25,6 +25,7 @@ Implement books as parts of a multi-book documentation site.
 
 
 import os
+import oyaml
 
 from subprocess import Popen
 
@@ -83,8 +84,9 @@ class AbstractBook(object):
         self._common = ''
     # TODO:
     # https://github.com/uliska/merge-mkdocs/issues/1
-        with open(nav_file, 'r') as f:
-            self._nav = f.read().split('\n')
+        self._nav = {
+            'nav': read_yaml(nav_file)
+        }
         self._search_index = None
         self._built = False
 
@@ -104,9 +106,13 @@ class AbstractBook(object):
     def common(self):
         """The common part of a mkdocs.yml file."""
         return self._common
-    def config(self):
+
+    def config(self, key=None, default=None):
         """The configuration dictionary."""
-        return self._config
+        if key:
+            return self._config.get(key, default)
+        else:
+            return self._config
 
     def is_main_book(self):
         """Return True if this is a main book, False for a sub book."""
@@ -116,11 +122,16 @@ class AbstractBook(object):
         """The book 'name' (i.e. the path segment addressing it)"""
         return self._name
 
-    def nav(self):
+    def nav(self, serialized=False):
         """The navigation configuration, stored as a string list."""
     # TODO:
     # https://github.com/uliska/merge-mkdocs/issues/1
-        return self._nav
+        if serialized:
+            noalias_dumper = oyaml.dumper.SafeDumper
+            noalias_dumper.ignore_aliases = lambda self, data: True
+            return oyaml.dump(self._nav, allow_unicode=True, Dumper=noalias_dumper)
+        else:
+            return self._nav
 
     def project(self):
         """Reference to the parent project."""
@@ -137,8 +148,15 @@ class AbstractBook(object):
 
         return self._search_index
 
-    def set_nav(self, content):
-        self._nav = '\n'.join(content)
+    def set_nav(self, navigation):
+        if type(navigation) == str:
+            self._nav = oyaml.load(navigation)
+            if not 'nav' in self._nav:
+                self._nav = {
+                    'nav': self._nav
+                }
+        else:
+            self._nav = navigation
 
     def site_root(self):
         """The root directory of the rendered HTML book."""
@@ -175,10 +193,17 @@ class AbstractBook(object):
         )
         self._common = result
 
+    def use_tabs(self):
+        """Return True if the book uses Material's tabs feature."""
+
+    # TODO:
+    # https://github.com/uliska/merge-mkdocs/issues/6
+        return self.config('tabs', None) == 'true'
+
     def write_yaml(self):
         """Write the generated content to a file."""
         with open(self.target_file(), 'w') as f:
-            f.write(self.common() + self.nav())
+            f.write(self.common() + self.nav(serialized=True))
 
 
 class MainBook(AbstractBook):
