@@ -139,7 +139,11 @@ class Project(object):
         If no configuration is available returns None.
         """
         book_config = book.book_config(key) if book else None
-        return book_config or self._config.get(key, None)
+        # NOTE: We can't use the 'or' construct to discern between
+        # None (no value) and False (valid value)
+        if book_config is None:
+            book_config = self._config.get(key, None)
+        return book_config
 
     def config_file(self):
         return self._config_file
@@ -355,14 +359,12 @@ class Project(object):
     # (https://github.com/uliska/merge-mkdocs/issues/1)
         nav = book.nav()['nav']
 
-        link_to_siblings = self.config('link_to_siblings')
-
         # By default sibling books are *not* linked to
         # because that is somewhat redundant.
         # The default is having the whole navigation structure
         # under control of the subbook and just add the link
         # the the main book.
-        if self.config('link_to_siblings'):
+        if self.config('link_to_siblings', book):
             siblings_position = self.config('siblings_position')
 
             sibling_nav = {

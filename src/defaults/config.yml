@@ -16,7 +16,12 @@ parent_link_text: 'Main Book'
 # Add navigation links to other books in a project
 # (if the 'tabs' feature of the Material theme is used
 # these are added to each secondary level navigation.)
-link_to_siblings: false
+# By default this should be active, set it to false if
+# the project has other means of linking to the sibling
+# books (e.g. a dedicated page, or if only the parent
+# book wants to link to the children).
+# Can be overridden on project and book level.
+link_to_siblings: true
 
 # Position of the sibling links [start|end]
 siblings_position: 'end'

@@ -45,4 +45,4 @@ def read_yaml(file):
     if not os.path.exists(file):
         return {}
     with open(file, 'r') as f:
-        return oyaml.load(f.read(), Loader=oyaml.BaseLoader)
+        return oyaml.load(f.read(), Loader=oyaml.SafeLoader)
