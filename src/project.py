@@ -73,8 +73,7 @@ class Project(object):
     # TODO: Improve
     # (https://github.com/uliska/merge-mkdocs/issues/2)
         if not (
-            os.path.exists(template_file)
-            and os.path.exists(defaults_file)
+            os.path.exists(defaults_file)
             and os.path.exists(outline_file)
         ):
             raise Exception("Project, Defaults, or Books file missing")
@@ -248,8 +247,11 @@ class Project(object):
 
     # TODO: Validate against defaults
     # (https://github.com/uliska/merge-mkdocs/issues/2)
-        with open(self.template_file(), 'r') as f:
-            return MKDOCS_HEADER_COMMENT + f.read()
+        if os.path.exists(self.template_file()):
+            with open(self.template_file(), 'r') as f:
+                return MKDOCS_HEADER_COMMENT + f.read()
+        else:
+            return MKDOCS_HEADER_COMMENT
 
     def recipe(self):
         """The recipe to be performed.
