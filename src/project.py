@@ -56,7 +56,7 @@ class Project(object):
         self._program_defaults_dir = program_defaults_dir
         # List of books. If present, the main book is the first in this list.
         self._books = []
-        self._has_main_book = False
+        self._main_book = None
 
         # Program and project site configuration files
         config_dir = os.path.join(self._root, '_merge-mkdocs-config')
@@ -73,14 +73,6 @@ class Project(object):
 
         # Store fields found in the project's template file
         self._template_fields = []
-
-    # TODO: Improve
-    # (https://github.com/uliska/merge-mkdocs/issues/2)
-        if not (
-            os.path.exists(defaults_file)
-            and os.path.exists(outline_file)
-        ):
-            raise Exception("Project, Defaults, or Books file missing")
 
         # Read and parse the different configuration files
         self._config = self.read_config()
@@ -205,26 +197,36 @@ class Project(object):
             return None
 
     def load_books(self):
-        """Create the book objects."""
-    # TODO:
-    # https://github.com/uliska/merge-mkdocs/issues/1
+        """Create the book objects.
+
+        The list of books is read either from an outline.yml file
+        or from the docs subdirectory.
+        In both cases a parent book is created if there is a book
+        whose name matches the 'parent_book' configuration option.
+
+        If outline.yml is present the parent book is used in the
+        list position specified in the file (although usually
+        this should be the first position).
+        If it is read from disk a parent book is by default placed
+        at the start of the list, except the configuration option
+        'parent_book_at_start' is explicitly set to false.
+        """
         result = []
-        outline = read_yaml(self.outline_file())
-        if outline[0] == self.config('parent_book'):
-            self._has_main_book = True
-            result.append(MainBook(self, outline.pop(0)))
+        outline = read_yaml(self.outline_file()) or self.read_outline()
+        parent_book_name = self.config('parent_book')
+
         for book in outline:
-            # The subbook entries are done different from the main book,
-            # so we have to explicitly create the dict here
-            result.append(SubBook(self, book))
+            parent = book == parent_book_name
+            if parent:
+                self._main_book = MainBook(self, book)
+                result.append(self._main_book)
+            else:
+                result.append(SubBook(self, book))
         return result
 
     def main_book(self):
         """Return the MainBook object, or None."""
-        if self._has_main_book:
-            return self.books()[0]
-        else:
-            return None
+        return self._main_book
 
     def outline_file(self):
         """The file where the book outline is configured, if present."""
@@ -246,11 +248,34 @@ class Project(object):
 
         return result
 
+    def read_outline(self):
+        """Read book list from books subdirectory.
+
+        This is done when no outline.yml is specified.
+        Existing books are read in alphabetical order.
+        If the config option 'parent_book_at_start' is
+        not explicitly set to false a parent book (if
+        present) will be moved to the list start.
+        """
+        books_dir = os.path.join(self.root(), 'books')
+        dir_entries = os.listdir(books_dir)
+        books = []
+        for entry in dir_entries:
+            if os.path.isdir(os.path.join(books_dir, entry)):
+                books.append(entry)
+        parent_name = self.config('parent_book')
+        if (
+            parent_name
+            and parent_name in books
+            and books.index(parent_name) > 0
+            and self.config('parent_book_at_start')
+        ):
+            books.insert(0, books.pop(books.index(parent_name)))
+        return books
+
     def read_template(self):
         """Read the template file."""
 
-    # TODO: Validate against defaults
-    # (https://github.com/uliska/merge-mkdocs/issues/2)
         template = MKDOCS_HEADER_COMMENT
         if os.path.exists(self.template_file()):
             with open(self.template_file(), 'r') as f:
@@ -304,7 +329,13 @@ in configuration file
         """Build the site
         Start with the main book because this clears the total site.
         """
-        for book in self.books():
+        books_ordered = [book for book in self.books()]
+        parent = self.main_book()
+        if parent:
+            books_ordered.insert(
+                0,
+                books_ordered.pop(books_ordered.index(parent)))
+        for book in books_ordered:
             book.build()
 
     def task_deploy(self):

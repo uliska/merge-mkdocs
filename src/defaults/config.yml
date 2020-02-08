@@ -8,6 +8,14 @@
 # not have a parenty book but consists of siblings only.
 parent_book: 'main'
 
+# If no outline.yml file is given then the list of
+# books is read from the books subdirectory. If this
+# includes a book whose name matches the parent_book
+# option it will be created as a parent book.
+# By default it will be placed at the start of the book
+# list, but this can be overridden with this option.
+parent_book_at_start: true
+
 # Text to be used for the "home" link to the parent book.
 # If this is set to an empty string in the project configuration
 # the book's actual title is used instead.
