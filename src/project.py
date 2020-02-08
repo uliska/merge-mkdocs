@@ -26,6 +26,7 @@ Representation of a merge-mkdocs project
 """
 
 import os
+import re
 import oyaml
 import sys
 
@@ -69,6 +70,9 @@ class Project(object):
         self._outline_file = outline_file = os.path.join(
             config_dir, 'outline.yml'
         )
+
+        # Store fields found in the project's template file
+        self._template_fields = []
 
     # TODO: Improve
     # (https://github.com/uliska/merge-mkdocs/issues/2)
@@ -247,11 +251,26 @@ class Project(object):
 
     # TODO: Validate against defaults
     # (https://github.com/uliska/merge-mkdocs/issues/2)
+        template = MKDOCS_HEADER_COMMENT
         if os.path.exists(self.template_file()):
             with open(self.template_file(), 'r') as f:
-                return MKDOCS_HEADER_COMMENT + f.read()
-        else:
-            return MKDOCS_HEADER_COMMENT
+                template += f.read()
+        fields = re.findall('<<<.*>>>', template)
+        self._template_fields = []
+        for field in fields:
+            if not field[3:-3] in fields:
+                self._template_fields.append(field[3:-3])
+        for field in self._template_fields:
+            if not field in self.defaults():
+                raise Exception("""No default value given for template field
+  {field}
+in configuration file
+  {file}
+            """.format(
+                field=field,
+                file=self._defaults_file
+            ))
+        return template
 
     def recipe(self):
         """The recipe to be performed.
