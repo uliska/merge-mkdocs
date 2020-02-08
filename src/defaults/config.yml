@@ -2,6 +2,17 @@
 # These can be overridden in a project's
 # _merge-mkdocs-config/config.yml file
 
+# Name of a book considered the parent book
+# If this is empty ('' or false) or if no book with that
+# name is found in the docs directory the project does
+# not have a parenty book but consists of siblings only.
+parent_book: 'main'
+
+# Text to be used for the "home" link to the parent book.
+# If this is set to an empty string in the project configuration
+# the book's actual title is used instead.
+parent_link_text: 'Main Book'
+
 # Add navigation links to other books in a project
 # (if the 'tabs' feature of the Material theme is used
 # these are added to each secondary level navigation.)

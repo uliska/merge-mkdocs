@@ -106,9 +106,9 @@ class Project(object):
         )
 
         title = (
-            '[{}]'.format(target.title())
+            '[{}]'.format(target.link_text())
             if source == target
-            else target.title()
+            else target.link_text()
         )
 
     # TODO: Clarify how to handle sibling navigation in tabs
@@ -188,11 +188,11 @@ class Project(object):
         if main:
             if from_book.use_tabs():
                 return {
-                    main.title(): { 'Invisible': '../index.html'}
+                    main.link_text(): { 'Invisible': '../index.html'}
                 }
             else:
                 return {
-                    main.title(): '../index.html'
+                    main.link_text(): '../index.html'
                 }
         else:
             return None
@@ -203,17 +203,13 @@ class Project(object):
     # https://github.com/uliska/merge-mkdocs/issues/1
         result = []
         outline = read_yaml(self.outline_file())
-        main = outline.get('main', None)
-        if main:
+        if outline[0] == self.config('parent_book'):
             self._has_main_book = True
-            result.append(MainBook(self, main))
-        for name, title in outline['books'].items():
+            result.append(MainBook(self, outline.pop(0)))
+        for book in outline:
             # The subbook entries are done different from the main book,
             # so we have to explicitly create the dict here
-            result.append(SubBook(self, {
-                'name': name,
-                'title': title
-            }))
+            result.append(SubBook(self, book))
         return result
 
     def main_book(self):

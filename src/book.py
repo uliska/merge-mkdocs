@@ -40,15 +40,14 @@ class AbstractBook(object):
     Books are part of a merge-mkdocs multi-book site.
     """
 
-    def __init__(self, project, entry):
+    def __init__(self, project, name):
 
         self._project = project
-        self._name = entry['name']
-        self._title = entry['title']
+        self._name = name
         self._src_root = root = os.path.join(
             project.root(),
             'books',
-            self._name
+            name
         )
         self._target_file = os.path.join(
             root,
@@ -122,6 +121,10 @@ class AbstractBook(object):
         """Return True if this is a main book, False for a sub book."""
         return isinstance(self, MainBook)
 
+    def link_text(self):
+        """Return the link text used for this book."""
+        return self.title()
+
     def name(self):
         """The book 'name' (i.e. the path segment addressing it)"""
         return self._name
@@ -176,7 +179,7 @@ class AbstractBook(object):
 
     def title(self):
         """The (visible) title of the sub book."""
-        return self._title
+        return self.config('book_name')
 
     def update_template(self):
         """
@@ -225,6 +228,11 @@ class AbstractBook(object):
 
 class MainBook(AbstractBook):
     """Represents the main book on a site."""
+
+    def link_text(self):
+        """Returns the link text to be used in a 'home' link.
+        Should be customized in the project's config.yml."""
+        return self.config('parent_link_text') or self.title()
 
     def site_path(self):
         return ''
