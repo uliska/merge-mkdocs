@@ -18,6 +18,10 @@ siblings_link_title: 'Sibling Books'
 # relative to the project's root directory.
 site_root: 'site'
 
+# Name of a given book, should be specified in each book's
+# config file. Will be rendered to mkdocs.yml as 'site_name'
+book_name: 'NO BOOK NAME'
+
 # Name of a script to be used after building a project
 # (must be executable and work without arguments,
 # however, command line interaction (e.g. passwords) is possible.)

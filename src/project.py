@@ -82,6 +82,9 @@ class Project(object):
         # Read and parse the different configuration files
         self._config = self.read_config()
         self._defaults = read_yaml(defaults_file)
+    # Hack to make the loop in book.update_template() work
+    # TODO: This should better be fixed, I think.
+        self._defaults['src_dir'] = ''
         self._template = self.read_template()
         self._books = self.load_books()
 
@@ -129,15 +132,14 @@ class Project(object):
         """
         return self._books
 
-    def config(self, key=None):
+    def config(self, key, book=None):
         """
-        Returns a given configuration value,
-        or the whole config dictionary.
+        Returns a given configuration value defined on
+        book, project or program level, in that order.
+        If no configuration is available returns None.
         """
-        if key:
-            return self._config[key]
-        else:
-            return self._config
+        book_config = book.book_config(key) if book else None
+        return book_config or self._config.get(key, None)
 
     def config_file(self):
         return self._config_file

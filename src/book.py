@@ -80,7 +80,7 @@ class AbstractBook(object):
         ):
             missing_file(self._name)
         self._config = read_yaml(config_file)
-        self._config['src_dir'] = self._name
+        self._config['src_dir'] = 'books/{}'.format(self._name)
         self._common = ''
     # TODO:
     # https://github.com/uliska/merge-mkdocs/issues/1
@@ -89,6 +89,13 @@ class AbstractBook(object):
         }
         self._search_index = None
         self._built = False
+
+    def book_config(self, key):
+        """Returns a configuration variable on book level,
+        or None, if not defined.
+        Should only be called from Project.config().
+        """
+        return self._config.get(key, None)
 
     def build(self):
         """Call MkDocs to build the book."""
@@ -107,12 +114,9 @@ class AbstractBook(object):
         """The common part of a mkdocs.yml file."""
         return self._common
 
-    def config(self, key=None, default=None):
+    def config(self, key):
         """The configuration dictionary."""
-        if key:
-            return self._config.get(key, default)
-        else:
-            return self._config
+        return self.project().config(key, self)
 
     def is_main_book(self):
         """Return True if this is a main book, False for a sub book."""
@@ -178,17 +182,30 @@ class AbstractBook(object):
         """
         Update the template with actual values.
         """
-        result = self.project().template()
+    # TODO:
+    # Do this on the dictionary level, *after* textually updating
+    # the template (in the context of:
+    # https://github.com/uliska/merge-mkdocs/issues/7 )
+        result = "site_name: '{}'\n".format(self.config('book_name'))
+
+        result += self.project().template()
         for item in self.project().defaults():
+            # TODO: In order to make this work the 'src_dir' "default"
+            # is added to the project defaults dictionary.
+            # This approach is convoluted and intransparent and should be fixed.
+            # And the edit_uri handling has to be considered with regard to
+            # the "known" providers where it will currently probably fail to
+            # insert the books/<<<src_dir>>> part.
             result = result.replace(
                 '<<<{}>>>'.format(item),
-                self.config().get(item, None) or self.project().defaults(item)
+                self.config(item) or self.project().defaults(item)
             )
         result = result.rstrip('\n') + '\n'
 
         # Calculate the relative directory where the book will be rendered to
+    # TODO: Make this optionally an absolute path
         result = result + "site_dir: '../../{root}{path}'\n\n".format(
-            root = self.project().config('site_root'),
+            root = self.config('site_root'),
             path = self.site_path()
         )
         self._common = result
@@ -198,7 +215,7 @@ class AbstractBook(object):
 
     # TODO:
     # https://github.com/uliska/merge-mkdocs/issues/6
-        return self.config('tabs', None) == 'true'
+        return self.config('tabs') == 'true'
 
     def write_yaml(self):
         """Write the generated content to a file."""
