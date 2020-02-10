@@ -371,3 +371,5 @@ TSWLatexianTemp*
 # standalone packages
 *.sta
 
+# Generated mkdocs.yml
+*mkdocs.yml
