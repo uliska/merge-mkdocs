@@ -87,10 +87,15 @@ class Project(object):
         # Decide which recipe is going to be executed
         self._recipe = cl_args.recipe or self.config('default_recipe')
 
-    def book_nav(self, source, target):
+    def book_nav(self, source, target, tabs=False):
         """
-        Returns a string list with the navigation entry
-        pointing to the given non-home book.
+        Returns a nav entry from one to another book.
+        Both source and target may be home or a sub-book, although
+        a link to itself doesn't make sense.
+
+        If the entry is shown in a tab (Material theme, abs=True)
+        there has to be an invisible navigation item, otherwise the
+        item is not shown at all.
         """
         from_segment = '' if source.is_main_book() else '../'
         to_segment = target.site_segment()
@@ -101,29 +106,23 @@ class Project(object):
             sep=separator
         )
 
+        # Highlight the link to the current book, at this point with
+        # brackets. This should be made configurable.
+        # See https://github.com/uliska/mkdocs-library/issues/9
         title = (
             '[{}]'.format(target.link_text())
             if source == target
             else target.link_text()
         )
 
-    # TODO: Clarify how to handle sibling navigation in tabs
-    # https://github.com/uliska/mkdocs-library/issues/8
-        return {
-            title: link
-        }
-    # The following is essentially the correct approach,
-    # but source.use_tabs() is not the right test.
-    # The invisible link layer is required not if the *book*
-    # uses tabs but if the *link* is included in tabs.
-#        if source.use_tabs():
-#            return {
-#                title: { 'Invisible': link }
-#            }
-#        else:
-#            return {
-#                title: link
-#            }
+        if tabs:
+            return {
+                title: { 'Invisible': link }
+            }
+        else:
+            return {
+                title: link
+            }
 
     def books(self):
         """
@@ -452,7 +451,11 @@ in configuration file
             self.main_book()            # ... there *is* a main book
             and not book.is_main_book() # but it's not the current book
         ):
-            main_nav = self.book_nav(book, self.main_book())
+            main_nav = self.book_nav(
+                book,
+                self.main_book(),
+                tabs=book.use_tabs()
+            )
             if siblings_position == 'start':
                 nav.insert(0, main_nav)
             else:
