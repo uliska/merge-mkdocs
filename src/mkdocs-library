@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is part of the merge-mkdocs project,
-# https://github.com/uliska/merge-mkdocs
-# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/merge-mkdocs/
+# This file is part of the mkdocs-library project,
+# https://github.com/uliska/mkdocs-library
+# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/mkdocs-library/
 #
-# Copyright (c) 2020 by Urs Liska
+# Copyright \(c\) 2020 by Urs Liska
+# Developed with support of the University of Music Freiburg
+# https://mh-freiburg.de
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -22,7 +24,7 @@
 # See http://www.gnu.org/licenses/ for more information.
 
 """
-Merge several MkDocs "books" to one multi-book site.
+Merge several MkDocs "books" to one multi-book "library".
 This is the script's entry file.
 """
 
@@ -40,7 +42,7 @@ def parse_args():
     # - project specific default can be given in the config
     parser.add_argument(
         '--recipe',
-        choices=['build', 'merge-sources', 'deploy', 'merge-indexes', 'all'],
+        choices=['merge-sources', 'merge-indexes', 'build', 'deploy', 'all'],
         help='Task (sequence) to be performed. Defaults to "build"'
     )
     parser.add_argument(
@@ -52,14 +54,14 @@ def parse_args():
 
 
 def main():
+    # Determine the directory with the program defaults
     config_dir = os.path.join(
         os.path.dirname(
             os.path.realpath(__file__)
         ),
         'defaults'
     )
-    args = parse_args()
-    Project(args, config_dir).exec_recipe()
+    Project(parse_args(), config_dir).exec_recipe()
 
 
 if __name__ == '__main__':

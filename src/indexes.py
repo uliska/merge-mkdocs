@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is part of the merge-mkdocs project,
-# https://github.com/uliska/merge-mkdocs
-# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/merge-mkdocs/
+# This file is part of the mkdocs-library project,
+# https://github.com/uliska/mkdocs-library
+# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/mkdocs-library/
 #
-# Copyright (c) 2020 by Urs Liska
+# Copyright \(c\) 2020 by Urs Liska
+# Developed with support of the University of Music Freiburg
+# https://mh-freiburg.de
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -122,7 +124,7 @@ class SearchIndex(object):
         The purpose is to update the location link to point to
         another book (= subdirectory of the main site). MkDocs
         generates locations that are relative to a book's root
-        directory. The layout of a merge-mkdocs site is to
+        directory. The layout of a mkdocs-library site is to
         render the main book at the site root, and all subbooks
         in corresponding subdirectories (= subbook name).
         That means:

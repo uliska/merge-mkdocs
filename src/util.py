@@ -1,8 +1,10 @@
-# This file is part of the merge-mkdocs project,
-# https://github.com/uliska/merge-mkdocs
-# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/merge-mkdocs/
+# This file is part of the mkdocs-library project,
+# https://github.com/uliska/mkdocs-library
+# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/mkdocs-library/
 #
-# Copyright (c) 2020 by Urs Liska
+# Copyright \(c\) 2020 by Urs Liska
+# Developed with support of the University of Music Freiburg
+# https://mh-freiburg.de
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -25,6 +27,7 @@ Common utility functions
 
 import os
 import oyaml
+import sys
 
 # TODO: This has to become much cleaner
 def missing_file(book):

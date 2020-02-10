@@ -1,25 +1,25 @@
-# merge-mkdocs configuration variables' default values.
+# mkdocs-library configuration variables' default values.
 # These can be overridden in a project's
-# _merge-mkdocs-config/config.yml file
+# _mkdocs-library-config/config.yml file
 
 # Name of a book considered the parent book
 # If this is empty ('' or false) or if no book with that
 # name is found in the docs directory the project does
 # not have a parenty book but consists of siblings only.
-parent_book: 'main'
+library_book: 'main'
 
 # If no outline.yml file is given then the list of
 # books is read from the books subdirectory. If this
-# includes a book whose name matches the parent_book
+# includes a book whose name matches the library_book
 # option it will be created as a parent book.
 # By default it will be placed at the start of the book
 # list, but this can be overridden with this option.
-parent_book_at_start: true
+library_book_at_start: true
 
 # Text to be used for the "home" link to the parent book.
 # If this is set to an empty string in the project configuration
 # the book's actual title is used instead.
-parent_link_text: 'Main Book'
+library_link_text: 'Main Book'
 
 # Add navigation links to other books in a project
 # (if the 'tabs' feature of the Material theme is used

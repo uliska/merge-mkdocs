@@ -1,8 +1,10 @@
-# This file is part of the merge-mkdocs project,
-# https://github.com/uliska/merge-mkdocs
-# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/merge-mkdocs/
+# This file is part of the mkdocs-library project,
+# https://github.com/uliska/mkdocs-library
+# https://glarean.mh-freiburg.de/git/GLAREAN-Doku/mkdocs-library/
 #
-# Copyright (c) 2020 by Urs Liska
+# Copyright \(c\) 2020 by Urs Liska
+# Developed with support of the University of Music Freiburg
+# https://mh-freiburg.de
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -37,7 +39,7 @@ from util import (
 
 class AbstractBook(object):
     """Represents a book.
-    Books are part of a merge-mkdocs multi-book site.
+    Books are part of a mkdocs-library multi-book site.
     """
 
     def __init__(self, project, name):
@@ -60,7 +62,7 @@ class AbstractBook(object):
         )
         config_dir = os.path.join(
             root,
-            '_merge-mkdocs-config'
+            '_config'
         )
         config_file = os.path.join(
             config_dir,
@@ -71,7 +73,7 @@ class AbstractBook(object):
             'navigation.yml'
         )
     # TODO:
-    # https://github.com/uliska/merge-mkdocs/issues/2
+    # https://github.com/uliska/mkdocs-library/issues/2
         if not (
             os.path.exists(root)
             and os.path.exists(config_file)
@@ -82,7 +84,7 @@ class AbstractBook(object):
         self._config['src_dir'] = 'books/{}'.format(self._name)
         self._common = ''
     # TODO:
-    # https://github.com/uliska/merge-mkdocs/issues/1
+    # https://github.com/uliska/mkdocs-library/issues/1
         self._nav = {
             'nav': read_yaml(nav_file)
         }
@@ -132,7 +134,7 @@ class AbstractBook(object):
     def nav(self, serialized=False):
         """The navigation configuration, stored as a string list."""
     # TODO:
-    # https://github.com/uliska/merge-mkdocs/issues/1
+    # https://github.com/uliska/mkdocs-library/issues/1
         if serialized:
             noalias_dumper = oyaml.dumper.SafeDumper
             noalias_dumper.ignore_aliases = lambda self, data: True
@@ -188,7 +190,7 @@ class AbstractBook(object):
     # TODO:
     # Do this on the dictionary level, *after* textually updating
     # the template (in the context of:
-    # https://github.com/uliska/merge-mkdocs/issues/7 )
+    # https://github.com/uliska/mkdocs-library/issues/7 )
         result = "site_name: '{}'\n".format(self.config('book_name'))
 
         result += self.project().template()
@@ -217,7 +219,7 @@ class AbstractBook(object):
         """Return True if the book uses Material's tabs feature."""
 
     # TODO:
-    # https://github.com/uliska/merge-mkdocs/issues/6
+    # https://github.com/uliska/mkdocs-library/issues/6
         return self.config('tabs') == 'true'
 
     def write_yaml(self):
@@ -232,7 +234,7 @@ class MainBook(AbstractBook):
     def link_text(self):
         """Returns the link text to be used in a 'home' link.
         Should be customized in the project's config.yml."""
-        return self.config('parent_link_text') or self.title()
+        return self.config('library_link_text') or self.title()
 
     def site_path(self):
         return ''
