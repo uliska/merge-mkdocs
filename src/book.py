@@ -72,13 +72,7 @@ class AbstractBook(object):
             config_dir,
             'navigation.yml'
         )
-    # TODO:
-    # https://github.com/uliska/mkdocs-library/issues/2
-        if not (
-            os.path.exists(root)
-            and os.path.exists(config_file)
-            and os.path.exists(nav_file)
-        ):
+        if not os.path.exists(nav_file):
             missing_file(self._name)
         self._config = read_yaml(config_file)
         self._config['src_dir'] = 'books/{}'.format(self._name)
