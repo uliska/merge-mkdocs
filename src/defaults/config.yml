@@ -21,6 +21,21 @@ library_book_at_start: true
 # the book's actual title is used instead.
 library_link_text: 'Main Book'
 
+# Add a navigation link to the library's main book.
+# If a main book is present there should in any case
+# be a link to it, with at least one of the following
+# options set to true.
+# Interaction of the two option is as follows:
+# - both true:
+#   - An independent library link is added
+#   - the library is filtered from the sibling links
+# - link_to_library: false, _to_siblings: true
+#   - No independent library link
+#   - Library is included in the sibling links
+# The library link is always inserted at the start
+# of the navigation
+link_to_library: true
+
 # Add navigation links to other books in a project
 # (if the 'tabs' feature of the Material theme is used
 # these are added to each secondary level navigation.)

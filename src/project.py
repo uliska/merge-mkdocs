@@ -411,52 +411,59 @@ in configuration file
         Integrate the local navigation in the multi-book set-up.
         NOTE: This modifies the book.nav()['nav'] list in place.
         """
-    # TODO: Enhance
-    # (https://github.com/uliska/mkdocs-library/issues/1)
         nav = book.nav()['nav']
+        # Get options, determine which links to insert (library/siblings)
+        library_link = (
+            self.config('link_to_library', book)
+            and self.main_book()            # ... there *is* a main book
+            and not book.is_main_book() # but it's not the current book
+        )
+        siblings_link = self.config('link_to_siblings', book)
         siblings_position = self.config('siblings_position')
 
-        # By default sibling books are *not* linked to
-        # because that is somewhat redundant.
-        # The default is having the whole navigation structure
-        # under control of the subbook and just add the link
-        # the the main book.
-        if self.config('link_to_siblings', book):
+        # Create a link to the main book
+        if library_link:
+            main_nav = self.book_nav(
+                book,
+                self.main_book(),
+                tabs=False
+            )
 
-            sibling_nav = {
-                self.config('siblings_link_title'): [
-                    self.book_nav(book, b)
-                    for b in self.books()
-                    #if b != book
-                ]
-            }
+        # Create a group of links to the sibling books.
+        # The link to the main book is integrated
+        # if it is not added standalone.
+        sibling_nav = {
+            self.config('siblings_link_title'): [
+                self.book_nav(book, b)
+                for b in self.books()
+                if not (
+                    b == self.main_book()
+                    and self.config('link_to_library', book)
+                )
+            ]
+        }
 
-            def insert_siblings(nav_branch):
+        def insert_nav(nav_branch):
+            """
+            Insert main and/or siblings nav links
+            into the given navigation branch.
+            """
+            if siblings_link:
                 if siblings_position == 'start':
                     nav_branch.insert(0, sibling_nav)
                 else:
                     nav_branch.append(sibling_nav)
+            if library_link:
+                nav_branch.insert(0, main_nav)
 
-            if not book.use_tabs():
-                insert_siblings(nav)
-            else:
-                for i, tl_entry in enumerate(nav):
-                    for name, entry in tl_entry.items():
-                        if type(entry) != list:
-                            entry = [{ name: entry }]
-                            nav[i] = { name: entry }
-                        insert_siblings(entry)
-        # Subbooks get a link to the main book at the top if ...
-        elif (
-            self.main_book()            # ... there *is* a main book
-            and not book.is_main_book() # but it's not the current book
-        ):
-            main_nav = self.book_nav(
-                book,
-                self.main_book(),
-                tabs=book.use_tabs()
-            )
-            if siblings_position == 'start':
-                nav.insert(0, main_nav)
-            else:
-                nav.append(main_nav)
+        # Insert detail navigation either in the main
+        # navigation bar or into every secondary navigation.
+        if not book.use_tabs():
+            insert_nav(nav)
+        else:
+            for i, tl_entry in enumerate(nav):
+                for name, entry in tl_entry.items():
+                    if type(entry) != list:
+                        entry = [{ name: entry }]
+                        nav[i] = { name: entry }
+                    insert_nav(entry)
