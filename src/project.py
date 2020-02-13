@@ -262,7 +262,7 @@ class Project(object):
         present) will be moved to the list start.
         """
         books_dir = os.path.join(self.root(), 'books')
-        dir_entries = os.listdir(books_dir)
+        dir_entries = sorted(os.listdir(books_dir))
         books = []
         for entry in dir_entries:
             if os.path.isdir(os.path.join(books_dir, entry)):
