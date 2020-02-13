@@ -450,11 +450,11 @@ in configuration file
             """
             if siblings_link:
                 if siblings_position == 'start':
-                    nav_branch.insert(0, sibling_nav)
+                    nav_branch.insert(1, sibling_nav)
                 else:
                     nav_branch.append(sibling_nav)
             if library_link:
-                nav_branch.insert(0, main_nav)
+                nav_branch.insert(1, main_nav)
 
         # Insert detail navigation either in the main
         # navigation bar or into every secondary navigation.
