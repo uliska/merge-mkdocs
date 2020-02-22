@@ -113,9 +113,9 @@ class AbstractBook(object):
         print("\n=======\n")
         self._built = True
 
-    def common(self):
+    def common(self, serialized=False):
         """The common part of a mkdocs.yml file."""
-        return self._common
+        return serialize_yaml(self._common) if serialized else self._common
 
     def config(self, key):
         """The configuration dictionary."""
@@ -185,13 +185,8 @@ class AbstractBook(object):
         """
         Update the template with actual values.
         """
-    # TODO:
-    # Do this on the dictionary level, *after* textually updating
-    # the template (in the context of:
-    # https://github.com/uliska/mkdocs-library/issues/7 )
-        result = "site_name: '{}'\n".format(self.config('book_name'))
 
-        result += self.project().template()
+        template = self.project().template()
         for item in self.project().defaults():
             # TODO: In order to make this work the 'src_dir' "default"
             # is added to the project defaults dictionary.
@@ -199,32 +194,33 @@ class AbstractBook(object):
             # And the edit_uri handling has to be considered with regard to
             # the "known" providers where it will currently probably fail to
             # insert the books/<<<src_dir>>> part.
-            result = result.replace(
+            template = template.replace(
                 '<<<{}>>>'.format(item),
                 self.config(item) or self.project().defaults(item)
             )
-        result = result.rstrip('\n') + '\n'
+
+        self._common = result = oyaml.load(template, Loader=oyaml.SafeLoader)
 
         # Calculate the relative directory where the book will be rendered to
-    # TODO: Make this optionally an absolute path
-        result = result + "site_dir: '../../{root}{path}'\n\n".format(
+        result['site_name'] = self.config('book_name')
+        result['site_dir'] = '../../{root}{path}'.format(
             root = self.config('site_root'),
             path = self.site_path()
         )
-        self._common = result
 
     def use_tabs(self):
         """Return True if the book uses Material's tabs feature."""
-
-    # TODO:
-    # https://github.com/uliska/mkdocs-library/issues/6
-        return self.config('tabs') == 'true'
+        return self.common().get(
+            'theme', {}
+        ).get(
+            'feature', {}
+        ).get('tabs', False)
 
     def write_yaml(self):
         """Write the generated content to a file."""
         content = (
             MKDOCS_HEADER_COMMENT
-            + self.common()
+            + self.common(serialized=True)
             + self.nav(serialized=True)
         )
 
@@ -254,7 +250,10 @@ class SubBook(AbstractBook):
     """
 
     def site_path(self):
+        # TODO: Make this configurable (for arbitrary nesting of subbooks)
+        # https://github.com/uliska/mkdocs-library/issues/14
         return '/{}'.format(self.name())
 
     def site_segment(self):
+        # TODO: Has to match the site_path if that is changed
         return self.name()

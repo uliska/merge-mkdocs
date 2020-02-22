@@ -450,12 +450,12 @@ in configuration file
 
         # Insert detail navigation either in the main
         # navigation bar or into every secondary navigation.
-        if not book.use_tabs():
-            insert_nav(nav)
-        else:
+        if book.use_tabs():
             for i, tl_entry in enumerate(nav):
                 for name, entry in tl_entry.items():
                     if type(entry) != list:
                         entry = [{ name: entry }]
                         nav[i] = { name: entry }
                     insert_nav(entry)
+        else:
+            insert_nav(nav)
