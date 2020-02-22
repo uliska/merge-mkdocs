@@ -1,7 +1,6 @@
 # mkdocs-library-Konfiguration.
 
 book_name: 'MISSING BOOK NAME'
-site_root: '../docs'
 library_link_text: 'Back to Home'
 siblings_position: 'end'
 siblings_link_title: 'All Books'
