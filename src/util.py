@@ -49,3 +49,11 @@ def read_yaml(file):
         return {}
     with open(file, 'r') as f:
         return oyaml.load(f.read(), Loader=oyaml.SafeLoader) or {}
+
+def serialize_yaml(yml):
+    """
+    Serialize a YAML dictionary to a multiline string.
+    """
+    noalias_dumper = oyaml.dumper.SafeDumper
+    noalias_dumper.ignore_aliases = lambda self, data: True
+    return oyaml.dump(yml, allow_unicode=True, Dumper=noalias_dumper)

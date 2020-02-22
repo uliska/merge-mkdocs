@@ -33,7 +33,8 @@ from subprocess import Popen
 
 from util import (
     read_yaml,
-    missing_file
+    missing_file,
+    serialize_yaml
 )
 
 
@@ -126,15 +127,11 @@ class AbstractBook(object):
         return self._name
 
     def nav(self, serialized=False):
-        """The navigation configuration, stored as a string list."""
-    # TODO:
-    # https://github.com/uliska/mkdocs-library/issues/1
-        if serialized:
-            noalias_dumper = oyaml.dumper.SafeDumper
-            noalias_dumper.ignore_aliases = lambda self, data: True
-            return oyaml.dump(self._nav, allow_unicode=True, Dumper=noalias_dumper)
-        else:
-            return self._nav
+        """Return the navigation configuration.
+        Either a reference to the internal dictionary
+        or as a serialized multiline string.
+        """
+        return serialize_yaml(self._nav) if serialized else self._nav
 
     def project(self):
         """Reference to the parent project."""
