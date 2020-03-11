@@ -31,7 +31,7 @@ This is the script's entry file.
 import argparse
 import os
 
-from project import Project
+from .project import Project
 
 
 def parse_args():

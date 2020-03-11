@@ -32,8 +32,8 @@ import re
 
 from subprocess import Popen
 
-from book import MainBook, SubBook
-from util import read_yaml
+from .book import MainBook, SubBook
+from .util import read_yaml
 
 
 class Project(object):

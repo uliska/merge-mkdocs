@@ -31,7 +31,7 @@ import oyaml
 
 from subprocess import Popen
 
-from util import (
+from .util import (
     read_yaml,
     missing_file,
     serialize_yaml
@@ -150,7 +150,7 @@ class AbstractBook(object):
         The object will be created upon first request.
         """
         if not self._search_index:
-            from indexes import SearchIndex
+            from .indexes import SearchIndex
             self._search_index = SearchIndex(self)
 
         return self._search_index
