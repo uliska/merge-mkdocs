@@ -10,6 +10,7 @@ setup(
     author_email='git@ursliska.de',
     description='Compose a "Library" of MkDocs partial/sub-books',
     python_requires='>=3.7',
+    include_package_data=True,
     install_requires=[
         'mkdocs>=1.1',
         'oyaml',
