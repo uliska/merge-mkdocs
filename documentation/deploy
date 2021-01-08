@@ -1,3 +1,0 @@
-#!/bin/bash
-
-rsync -avz site/ -e ssh "uliska@delta.ursliska.de:/srv/www/ursliska.de/tools.ursliska.de"
